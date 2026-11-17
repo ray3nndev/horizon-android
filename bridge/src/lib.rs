@@ -111,6 +111,35 @@ pub extern "system" fn Java_com_movtery_zalithlauncher_nativebridge_HorizonBridg
     }
 }
 
+/// Native GameActivity entry point. Winit's Android backend calls into this
+/// function on its dedicated native thread after the Activity loads this
+/// library. The launcher must call nativePrepare before opening GameActivity.
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub fn android_main(app: winit::platform::android::activity::AndroidApp) {
+    if horizon_client::entry::set_android_app(app).is_err() {
+        eprintln!("Vyron: Horizon Android Activity was attached more than once");
+        return;
+    }
+
+    let startup = match startup_slot().lock() {
+        Ok(mut slot) => slot.take(),
+        Err(_) => {
+            eprintln!("Vyron: Horizon startup state lock is poisoned");
+            return;
+        }
+    };
+    let Some(startup) = startup else {
+        eprintln!("Vyron: nativePrepare must succeed before GameActivity starts");
+        return;
+    };
+
+    // Start with an intentionally empty native-code inventory. The official
+    // Horizon host still performs content-package discovery, dependency checks,
+    // hook installation, and the actual client startup sequence.
+    horizon_mod_host::main_with(Vec::new(), &[], &[], startup);
+}
+
 /// True after Android has supplied all required paths.
 pub fn has_launch_context() -> bool {
     context_slot()
