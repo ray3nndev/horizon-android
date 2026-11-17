@@ -1,0 +1,38 @@
+diff --git a/crates/horizon-client/src/game/runtime/launch_options.rs b/crates/horizon-client/src/game/runtime/launch_options.rs
+index 0000000..0000000 100644
+--- a/crates/horizon-client/src/game/runtime/launch_options.rs
++++ b/crates/horizon-client/src/game/runtime/launch_options.rs
+@@ -181,14 +181,25 @@
+     pub(super) fn from_launch(launch: LaunchArguments) -> Result<Option<Self>> {
+         let installation_side = launch.installation_side();
+         let LaunchArguments { context, rest } = launch;
+-        let sibling = std::env::current_exe()?
+-            .parent()
+-            .ok_or("missing executable directory")?
+-            .join("resources");
++        // Android hosts embed the engine in the launcher process, so there is no
++        // standalone horizon executable whose parent can locate bundled resources.
++        // The host supplies this directory before entering the engine. Desktop
++        // launchers retain the historical executable-sibling lookup.
++        let sibling = if let Some(path) = std::env::var_os("HORIZON_RESOURCES_DIR") {
++            let path = PathBuf::from(path);
++            if !path.join("horizon-resources.json").is_file() {
++                return Err(format!(
++                    "HORIZON_RESOURCES_DIR {} has no horizon-resources.json",
++                    path.display()
++                )
++                .into());
++            }
++            path
++        } else {
++            std::env::current_exe()?
++                .parent()
++                .ok_or("missing executable directory")?
++                .join("resources")
++        };
+         let mut o = Self {
+-            resources: if sibling.join("horizon-resources.json").exists() {
++            resources: if sibling.join("horizon-resources.json").is_file() {
+                 sibling
+             } else {
+                 std::path::Path::new(".local/horizon-client").join(horizon_core::VANILLA_VERSION)
