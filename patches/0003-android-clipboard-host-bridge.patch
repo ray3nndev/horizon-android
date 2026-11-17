@@ -1,9 +1,7 @@
 diff --git a/crates/horizon-client-input/Cargo.toml b/crates/horizon-client-input/Cargo.toml
 --- a/crates/horizon-client-input/Cargo.toml
 +++ b/crates/horizon-client-input/Cargo.toml
-@@ -11,7 +11,6 @@
- horizon-engine-slots = { path = "../horizon-engine-slots" }
- horizon-client-core = { path = "../horizon-client-core" }
+@@ -13,7 +13,6 @@
  winit = "0.30.13"
  log = "0.4"
  png = "0.18"
@@ -11,8 +9,7 @@ diff --git a/crates/horizon-client-input/Cargo.toml b/crates/horizon-client-inpu
  
  [dev-dependencies]
  # The window icon test decodes Horizon's icon.
-@@ -20,6 +19,9 @@
- controllers = []
+@@ -24,3 +23,6 @@
  
  [lints]
  workspace = true
@@ -22,7 +19,18 @@ diff --git a/crates/horizon-client-input/Cargo.toml b/crates/horizon-client-inpu
 diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-client-input/src/clipboard.rs
 --- a/crates/horizon-client-input/src/clipboard.rs
 +++ b/crates/horizon-client-input/src/clipboard.rs
-@@ -106,8 +106,10 @@
+@@ -3,7 +3,9 @@
+ //! `isCopy`, `isPaste` and `isCut`, `StringUtil.filterText` and
+ //! `ChatFormatting.stripFormatting`.
+ 
++use std::cell::RefCell;
++#[cfg(not(target_os = "android"))]
++use std::cell::RefMut;
+-use std::cell::{RefCell, RefMut};
+ use winit::keyboard::{Key, KeyCode, PhysicalKey};
+ 
+ /// A text-editing shortcut (`InputWithModifiers.isSelectAll`, `isCopy`,
+@@ -128,6 +130,7 @@
  /// It reads and writes through `&self`, as a mod's `ClientHost` reaches it.
  #[derive(Default)]
  pub struct SystemClipboard {
@@ -30,10 +38,7 @@ diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-clien
      system: RefCell<Option<arboard::Clipboard>>,
      /// The text Horizon last copied (`horizon-ctl status`).
      copied: RefCell<Option<String>>,
- }
- 
- impl SystemClipboard {
-@@ -117,6 +119,7 @@
+@@ -139,6 +142,7 @@
          self.copied.borrow().clone()
      }
      /// The system clipboard, connected on first use.
@@ -41,7 +46,7 @@ diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-clien
      fn system(&self) -> RefMut<'_, Option<arboard::Clipboard>> {
          let mut system = self.system.borrow_mut();
          if system.is_none() {
-@@ -125,6 +128,10 @@
+@@ -148,6 +152,11 @@
      }
      /// `KeyboardHandler.getClipboard`: empty when there is no text.
      pub fn text(&self) -> String {
@@ -53,7 +58,7 @@ diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-clien
          let mut system = self.system();
          let Some(board) = system.as_mut() else {
              return self.copied().unwrap_or_default();
-@@ -139,13 +146,18 @@
+@@ -161,6 +170,7 @@
                  String::new()
              }
          }
@@ -61,7 +66,7 @@ diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-clien
      }
      /// `KeyboardHandler.setClipboard`: empty text is not copied.
      pub fn set_text(&self, text: &str) {
-         if text.is_empty() {
+@@ -168,12 +178,15 @@
              return;
          }
          *self.copied.borrow_mut() = Some(text.to_owned());
@@ -76,3 +81,4 @@ diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-clien
 +        }
      }
  }
+ 
