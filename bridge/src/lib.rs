@@ -21,6 +21,7 @@ pub struct LaunchContext {
     pub game_dir: String,
     pub home_dir: String,
     pub resources_dir: String,
+    pub launch_args_json: String,
 }
 
 static LAUNCH_CONTEXT: OnceLock<Mutex<Option<LaunchContext>>> = OnceLock::new();
@@ -47,16 +48,17 @@ pub extern "system" fn Java_com_ray3nndev_vyron_nativebridge_HorizonBridge_nativ
     game_dir: JString<'_>,
     home_dir: JString<'_>,
     resources_dir: JString<'_>,
+    launch_args_json: JString<'_>,
 ) -> jint {
     let context = match (
         java_string(&mut env, game_dir),
         java_string(&mut env, home_dir),
         java_string(&mut env, resources_dir),
+        java_string(&mut env, launch_args_json),
     ) {
-        (Ok(game_dir), Ok(home_dir), Ok(resources_dir)) => LaunchContext {
-            game_dir,
-            home_dir,
-            resources_dir,
+        (Ok(game_dir), Ok(home_dir), Ok(resources_dir), Ok(launch_args_json)) => {
+            if serde_json::from_str::<Vec<String>>(&launch_args_json).is_err() { return -2; }
+            LaunchContext { game_dir, home_dir, resources_dir, launch_args_json }
         },
         _ => return -1,
     };
@@ -96,7 +98,10 @@ pub extern "system" fn Java_com_ray3nndev_vyron_nativebridge_HorizonBridge_nativ
         PathBuf::from(context.game_dir),
         PathBuf::from(context.home_dir),
         PathBuf::from(context.resources_dir),
-        Vec::new(),
+        match serde_json::from_str::<Vec<String>>(&context.launch_args_json) {
+            Ok(args) => args,
+            Err(_) => return -2,
+        },
     ) {
         Ok(startup) => startup,
         Err(_) => return -2,
