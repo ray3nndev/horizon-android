@@ -20,5 +20,25 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify and apply port patches
         run: bash scripts/apply-engine-patches.sh
-      - name: Check patched Horizon client
+      - name: Check patched Horizon client (Linux host)
         run: cargo check --manifest-path engine/horizon-upstream/Cargo.toml -p horizon-client --lib
+
+  android-arm64-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Android SDK and NDK
+        uses: android-actions/setup-android@v3
+      - name: Install pinned Android NDK
+        run: sdkmanager "ndk;27.2.12479018"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - name: Set Android NDK environment
+        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Verify and apply port patches
+        run: bash scripts/apply-engine-patches.sh
+      - name: Cross-check Horizon client for Android arm64
+        run: cargo check --manifest-path engine/horizon-upstream/Cargo.toml -p horizon-client --lib --target aarch64-linux-android --no-default-features
