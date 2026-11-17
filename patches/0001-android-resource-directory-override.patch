@@ -1,7 +1,7 @@
 diff --git a/crates/horizon-client/src/game/runtime/launch_options.rs b/crates/horizon-client/src/game/runtime/launch_options.rs
 --- a/crates/horizon-client/src/game/runtime/launch_options.rs
 +++ b/crates/horizon-client/src/game/runtime/launch_options.rs
-@@ -183,5 +183,21 @@
+@@ -183,6 +183,21 @@
 -        let sibling = std::env::current_exe()?
 -            .parent()
 -            .ok_or("missing executable directory")?
