@@ -1,7 +1,7 @@
 diff --git a/crates/horizon-client/src/game/runtime/window_handler.rs b/crates/horizon-client/src/game/runtime/window_handler.rs
 --- a/crates/horizon-client/src/game/runtime/window_handler.rs
 +++ b/crates/horizon-client/src/game/runtime/window_handler.rs
-@@ -437,14 +437,21 @@ impl ApplicationHandler for Game<'_> {
+@@ -437,12 +437,24 @@ impl ApplicationHandler for Game<'_> {
          self.handle_window_event(event_loop, id, event, input_trace::InputOrigin::User);
          if let Some((event, modifiers)) = key {
 -            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
@@ -34,14 +34,14 @@ diff --git a/crates/horizon-client/src/game/runtime/window_handler.rs b/crates/h
 diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entry.rs
 --- a/crates/horizon-client/src/entry.rs
 +++ b/crates/horizon-client/src/entry.rs
-@@ -25,7 +25,9 @@ impl Startup {
+@@ -25,8 +25,10 @@ impl Startup {
  /// Holder mode runs first. The game's sole Options validation reads arguments/environment
  /// and resource marker metadata only: no logging, account loading, mods or worker threads.
  /// Account IO, cwd changes and command registration remain in Options::read, after leases.
  pub fn prepare() -> Startup {
 +    #[cfg(not(target_os = "android"))]
      horizon_mod_package::holder::enter();
-+    
++
      let result: crate::Result<_> = (|| {
          let mut command = std::process::Command::new(std::env::current_exe()?);
          command.args(std::env::args_os().skip(1));
