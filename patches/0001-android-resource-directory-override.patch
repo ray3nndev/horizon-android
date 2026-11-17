@@ -2,7 +2,7 @@ diff --git a/crates/horizon-client/src/game/runtime/launch_options.rs b/crates/h
 index 4d7a6a1..8b2e9c3 100644
 --- a/crates/horizon-client/src/game/runtime/launch_options.rs
 +++ b/crates/horizon-client/src/game/runtime/launch_options.rs
-@@ -181,12 +181,29 @@
+@@ -181,14 +181,31 @@
      pub(super) fn from_launch(launch: LaunchArguments) -> Result<Option<Self>> {
          let installation_side = launch.installation_side();
          let LaunchArguments { context, rest } = launch;
