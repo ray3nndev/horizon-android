@@ -5,10 +5,9 @@ diff --git a/crates/horizon-client-input/src/keybinds.rs b/crates/horizon-client
  /// that key from now on (`key_display::learn_layout`), so an AZERTY player's
  /// Q key shows A.
  pub fn learn_layout(event: &winit::event::KeyEvent) {
+     use winit::keyboard::{Key, PhysicalKey};
 +    #[cfg(not(target_os = "android"))]
      use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-+    use winit::keyboard::{Key, PhysicalKey};
--    use winit::keyboard::{Key, PhysicalKey};
      let PhysicalKey::Code(code) = event.physical_key else {
          return;
      };
