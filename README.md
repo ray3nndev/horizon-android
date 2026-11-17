@@ -21,6 +21,8 @@ Planned work:
 4. Build and validate for `arm64-v8a`.
 5. Integrate the resulting engine into Vyron, then remove the temporary Starling dependency only after end-to-end gameplay works.
 
+A first JNI bridge crate now accepts Vyron's app-private game, home, and resources paths. It is a launch-context handoff only; it does not yet start Horizon or own the Android graphics lifecycle.
+
 The desktop executable is not an Android runtime. The port must reuse the engine's Rust crates and adapt platform boundaries rather than trying to run the PC executable on Android.
 
 ## Compatibility requirements
