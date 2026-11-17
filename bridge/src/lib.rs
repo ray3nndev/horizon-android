@@ -1,15 +1,20 @@
 //! JNI boundary for Vyron's Android host.
 //!
-//! This crate establishes a typed, app-private launch-context handoff. The
-//! engine startup API and Android GameActivity/winit lifecycle are connected
-//! in subsequent port stages.
+//! The bridge receives app-private paths, prepares a real Horizon Startup, and
+//! retains that validated state for the later Android runtime/lifecycle adapter.
+//! This is not yet the renderer/game loop entry point.
 
 use jni::{
     JNIEnv,
     objects::{JClass, JString},
     sys::jint,
 };
-use std::sync::{Mutex, OnceLock};
+use std::{
+    path::PathBuf,
+    sync::{Mutex, OnceLock},
+};
+
+use horizon_client::entry::Startup;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LaunchContext {
@@ -19,17 +24,22 @@ pub struct LaunchContext {
 }
 
 static LAUNCH_CONTEXT: OnceLock<Mutex<Option<LaunchContext>>> = OnceLock::new();
+static PREPARED_STARTUP: OnceLock<Mutex<Option<Startup>>> = OnceLock::new();
 
 fn context_slot() -> &'static Mutex<Option<LaunchContext>> {
     LAUNCH_CONTEXT.get_or_init(|| Mutex::new(None))
+}
+
+fn startup_slot() -> &'static Mutex<Option<Startup>> {
+    PREPARED_STARTUP.get_or_init(|| Mutex::new(None))
 }
 
 fn java_string(env: &mut JNIEnv<'_>, value: JString<'_>) -> Result<String, jni::errors::Error> {
     env.get_string(&value).map(|value| value.into())
 }
 
-/// JNI method for com.movtery.zalithlauncher.nativebridge.HorizonBridge.
-/// Returns 0 on success, -1 if a Java string cannot be decoded or the lock is poisoned.
+/// Configure the filesystem roots supplied by the Android launcher.
+/// Returns 0 on success and -1 when a Java string or lock operation fails.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_movtery_zalithlauncher_nativebridge_HorizonBridge_nativeConfigure(
     mut env: JNIEnv<'_>,
@@ -54,13 +64,54 @@ pub extern "system" fn Java_com_movtery_zalithlauncher_nativebridge_HorizonBridg
     match context_slot().lock() {
         Ok(mut slot) => {
             *slot = Some(context);
+            // A new context invalidates any Startup prepared from older paths.
+            if let Ok(mut startup) = startup_slot().lock() {
+                *startup = None;
+            } else {
+                return -1;
+            }
             0
         }
         Err(_) => -1,
     }
 }
 
-/// Returns true once Android has supplied all required paths.
+/// Ask Horizon itself to validate and prepare the Android launch.
+/// Returns 0 on success, -1 if not configured, -2 if Horizon rejects the
+/// launch context, and -3 if the bridge's state lock is poisoned.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_movtery_zalithlauncher_nativebridge_HorizonBridge_nativePrepare(
+    _env: JNIEnv<'_>,
+    _class: JClass<'_>,
+) -> jint {
+    let context = match context_slot().lock() {
+        Ok(slot) => match slot.clone() {
+            Some(context) => context,
+            None => return -1,
+        },
+        Err(_) => return -3,
+    };
+
+    let startup = match horizon_client::entry::prepare_android(
+        PathBuf::from(context.game_dir),
+        PathBuf::from(context.home_dir),
+        PathBuf::from(context.resources_dir),
+        Vec::new(),
+    ) {
+        Ok(startup) => startup,
+        Err(_) => return -2,
+    };
+
+    match startup_slot().lock() {
+        Ok(mut slot) => {
+            *slot = Some(startup);
+            0
+        }
+        Err(_) => -3,
+    }
+}
+
+/// True after Android has supplied all required paths.
 pub fn has_launch_context() -> bool {
     context_slot()
         .lock()
@@ -68,7 +119,15 @@ pub fn has_launch_context() -> bool {
         .unwrap_or(false)
 }
 
-/// Clones the launch context for the engine startup adapter.
+/// True after Horizon's Android startup validation has succeeded.
+pub fn has_prepared_startup() -> bool {
+    startup_slot()
+        .lock()
+        .map(|slot| slot.is_some())
+        .unwrap_or(false)
+}
+
+/// Clones the launch context for diagnostics and later host integration.
 pub fn launch_context() -> Option<LaunchContext> {
     context_slot().lock().ok().and_then(|slot| slot.clone())
 }
@@ -80,6 +139,7 @@ mod tests {
     #[test]
     fn launch_context_is_absent_until_android_configures_it() {
         assert!(!has_launch_context());
+        assert!(!has_prepared_startup());
         assert!(launch_context().is_none());
     }
 }
