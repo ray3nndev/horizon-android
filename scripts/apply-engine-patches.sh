@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENGINE_DIR="${1:-engine/horizon-upstream}"
-PATCH_DIR="${2:-patches}"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ENGINE_DIR="${1:-$ROOT_DIR/engine/horizon-upstream}"
+PATCH_DIR="${2:-$ROOT_DIR/patches}"
 
 if [[ ! -d "$ENGINE_DIR/.git" && ! -f "$ENGINE_DIR/.git" ]]; then
   echo "Horizon upstream submodule is missing: $ENGINE_DIR" >&2
