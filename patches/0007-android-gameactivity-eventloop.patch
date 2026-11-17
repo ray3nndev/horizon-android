@@ -1,7 +1,7 @@
 diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entry.rs
 --- a/crates/horizon-client/src/entry.rs
 +++ b/crates/horizon-client/src/entry.rs
-@@ -5,2 +5,31 @@ use horizon_mod_package::selection::{Argument, LaunchArguments};
+@@ -5,5 +5,40 @@ use horizon_mod_package::selection::{Argument, LaunchArguments};
  pub(crate) mod dedicated_arguments;
  pub(crate) mod runtime_environment;
 +
@@ -45,7 +45,7 @@ diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entr
 diff --git a/crates/horizon-client/src/game/runtime/loading_screen.rs b/crates/horizon-client/src/game/runtime/loading_screen.rs
 --- a/crates/horizon-client/src/game/runtime/loading_screen.rs
 +++ b/crates/horizon-client/src/game/runtime/loading_screen.rs
-@@ -30,7 +30,7 @@ pub(super) fn run_event_loop(mut game: Game<'_>) -> Result<()> {
+@@ -30,4 +30,4 @@ pub(super) fn run_event_loop(mut game: Game<'_>) -> Result<()> {
      }
      let mut split = split::Split::new(game);
 -    let result = EventLoop::new()?.run_app(&mut split);
@@ -54,7 +54,7 @@ diff --git a/crates/horizon-client/src/game/runtime/loading_screen.rs b/crates/h
 diff --git a/crates/horizon-client/src/game/runtime/no_resources.rs b/crates/horizon-client/src/game/runtime/no_resources.rs
 --- a/crates/horizon-client/src/game/runtime/no_resources.rs
 +++ b/crates/horizon-client/src/game/runtime/no_resources.rs
-@@ -43,7 +43,7 @@ pub(super) fn show(looked_in: &std::path::Path, settings: &Settings) -> Result<()> {
+@@ -43,6 +43,6 @@ pub(super) fn show(looked_in: &std::path::Path, settings: &Settings) -> Result<()> {
      };
  
 -    EventLoop::new()?.run_app(&mut app)?;
