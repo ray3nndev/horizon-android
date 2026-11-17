@@ -31,6 +31,8 @@ jobs:
           submodules: recursive
       - name: Install Android SDK and NDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Install pinned Android NDK
         run: sdkmanager "ndk;27.2.12479018"
       - uses: dtolnay/rust-toolchain@stable
