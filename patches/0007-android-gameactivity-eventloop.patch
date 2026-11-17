@@ -54,7 +54,7 @@ diff --git a/crates/horizon-client/src/game/runtime/loading_screen.rs b/crates/h
 diff --git a/crates/horizon-client/src/game/runtime/no_resources.rs b/crates/horizon-client/src/game/runtime/no_resources.rs
 --- a/crates/horizon-client/src/game/runtime/no_resources.rs
 +++ b/crates/horizon-client/src/game/runtime/no_resources.rs
-@@ -43,6 +43,6 @@ pub(super) fn show(looked_in: &std::path::Path, settings: &Settings) -> Result<()> {
+@@ -43,5 +43,5 @@ pub(super) fn show(looked_in: &std::path::Path, settings: &Settings) -> Result<()> {
      };
  
 -    EventLoop::new()?.run_app(&mut app)?;
