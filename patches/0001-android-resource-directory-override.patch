@@ -1,12 +1,11 @@
 diff --git a/crates/horizon-client/src/game/runtime/launch_options.rs b/crates/horizon-client/src/game/runtime/launch_options.rs
 --- a/crates/horizon-client/src/game/runtime/launch_options.rs
 +++ b/crates/horizon-client/src/game/runtime/launch_options.rs
-@@ -183,6 +183,21 @@
+@@ -183,5 +183,21 @@
 -        let sibling = std::env::current_exe()?
 -            .parent()
 -            .ok_or("missing executable directory")?
 -            .join("resources");
--        let mut o = Self {
 +        // Android hosts embed the engine in the launcher process, so there is no
 +        // standalone horizon executable whose parent can locate bundled resources.
 +        // The host supplies this directory before entering the engine. Desktop
