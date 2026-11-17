@@ -1,7 +1,7 @@
 diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entry.rs
 --- a/crates/horizon-client/src/entry.rs
 +++ b/crates/horizon-client/src/entry.rs
-@@ -22,6 +22,48 @@ impl Startup {
+@@ -22,7 +22,55 @@ impl Startup {
      }
  }
  
