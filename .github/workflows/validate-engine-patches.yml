@@ -13,6 +13,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes pkg-config libasound2-dev
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify and apply port patches
         run: bash scripts/apply-engine-patches.sh
