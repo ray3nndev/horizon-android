@@ -45,6 +45,7 @@ jobs:
           echo "CC_aarch64_linux_android=$TOOLCHAIN/aarch64-linux-android24-clang" >> "$GITHUB_ENV"
           echo "CXX_aarch64_linux_android=$TOOLCHAIN/aarch64-linux-android24-clang++" >> "$GITHUB_ENV"
           echo "AR_aarch64_linux_android=$TOOLCHAIN/llvm-ar" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android24-clang" >> "$GITHUB_ENV"
           echo "$TOOLCHAIN" >> "$GITHUB_PATH"
       - name: Verify and apply port patches
         run: bash scripts/apply-engine-patches.sh
@@ -56,13 +57,14 @@ jobs:
         run: cargo build --release --manifest-path bridge/Cargo.toml --target aarch64-linux-android
       - name: Verify native library output
         run: |
-          test -s target/aarch64-linux-android/release/libhorizon_android_bridge.so
-          file target/aarch64-linux-android/release/libhorizon_android_bridge.so
-          llvm-readelf -h target/aarch64-linux-android/release/libhorizon_android_bridge.so
+          LIBRARY="bridge/target/aarch64-linux-android/release/libhorizon_android_bridge.so"
+          test -s "$LIBRARY"
+          file "$LIBRARY"
+          llvm-readelf -h "$LIBRARY"
       - name: Upload Android ARM64 native library
         uses: actions/upload-artifact@v4
         with:
           name: horizon-android-arm64-native
-          path: target/aarch64-linux-android/release/libhorizon_android_bridge.so
+          path: bridge/target/aarch64-linux-android/release/libhorizon_android_bridge.so
           if-no-files-found: error
           retention-days: 7
