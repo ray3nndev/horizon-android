@@ -1,0 +1,20 @@
+name: Validate Horizon Android patches
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apply-engine-patches:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify and apply port patches
+        run: bash scripts/apply-engine-patches.sh
+      - name: Check patched Horizon client
+        run: cargo check --manifest-path engine/horizon-upstream/Cargo.toml -p horizon-client --lib
