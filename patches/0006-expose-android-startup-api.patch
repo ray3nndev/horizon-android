@@ -1,0 +1,59 @@
+diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entry.rs
+--- a/crates/horizon-client/src/entry.rs
++++ b/crates/horizon-client/src/entry.rs
+@@ -22,6 +22,48 @@ impl Startup {
+     }
+ }
+ 
++/// Prepare Horizon for an Android host which embeds the client in its own process.
++///
++/// Unlike `prepare`, this entry point does not inspect the executable path,
++/// process arguments, or desktop runtime-holder state. The launcher supplies
++/// all filesystem roots and the game's arguments explicitly.
++#[cfg(target_os = "android")]
++pub fn prepare_android(
++    game_dir: std::path::PathBuf,
++    home_dir: std::path::PathBuf,
++    resources_dir: std::path::PathBuf,
++    args: Vec<String>,
++) -> Result<Startup, String> {
++    if !game_dir.is_absolute() || !home_dir.is_absolute() || !resources_dir.is_absolute() {
++        return Err("Android launch directories must be absolute paths".into());
++    }
++    if !resources_dir.join("horizon-resources.json").is_file() {
++        return Err(format!(
++            "Horizon resources are missing or invalid: {}",
++            resources_dir.display()
++        ));
++    }
++
++    // LaunchArguments owns game/home selection. Supplying the game directory as
++    // its cwd makes every relative launcher argument resolve inside that folder.
++    let launch = LaunchArguments::parse(
++        args.into_iter().chain([
++            "--resources".to_owned(),
++            resources_dir.to_string_lossy().into_owned(),
++        ]),
++        &game_dir,
++        &home_dir,
++        None,
++    )
++    .map_err(|error| error.to_string())?;
++
++    let options = game::Options::validate(launch.clone())
++        .map_err(|error| error.to_string())?
++        .ok_or_else(|| "Android startup received an information-only request".to_owned())?;
++
++    Ok(Startup {
++        launch,
++        options,
++        // Android does not use the desktop process holder. Its native package
++        // loading is supplied by the Android host's Runtime in entry::start.
++        _capture: None,
++    })
++}
++
+ /// Holder mode runs first. The game's sole Options validation reads arguments/environment
+ /// and resource marker metadata only: no logging, account loading, mods or worker threads.
+ /// Account IO, cwd changes and command registration remain in Options::read, after leases.
+ pub fn prepare() -> Startup {
