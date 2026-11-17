@@ -1,0 +1,63 @@
+diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entry.rs
+--- a/crates/horizon-client/src/entry.rs
++++ b/crates/horizon-client/src/entry.rs
+@@ -5,2 +5,31 @@ use horizon_mod_package::selection::{Argument, LaunchArguments};
+ pub(crate) mod dedicated_arguments;
+ pub(crate) mod runtime_environment;
++
++/// Android's GameActivity handle, supplied by the native entry point.
++#[cfg(target_os = "android")]
++static ANDROID_APP: std::sync::OnceLock<
++    winit::platform::android::activity::AndroidApp,
++> = std::sync::OnceLock::new();
++
++/// Attach the GameActivity handle before Horizon creates its Winit event loop.
++#[cfg(target_os = "android")]
++pub fn set_android_app(
++    app: winit::platform::android::activity::AndroidApp,
++) -> Result<(), winit::platform::android::activity::AndroidApp> {
++    ANDROID_APP.set(app)
++}
++
++/// Build the platform event loop. Android must receive its Activity handle
++/// from android_main; desktop platforms retain Winit's normal constructor.
++pub(crate) fn event_loop(
++) -> Result<winit::event_loop::EventLoop<()>, winit::error::EventLoopError> {
++    #[cfg(target_os = "android")]
++    {
++        use winit::platform::android::EventLoopBuilderExtAndroid;
++        let app = ANDROID_APP
++            .get()
++            .expect("Android GameActivity must be attached before event-loop creation")
++            .clone();
++        let mut builder = winit::event_loop::EventLoop::<()>::builder();
++        builder.with_android_app(app);
++        builder.build()
++    }
++    #[cfg(not(target_os = "android"))]
++    {
++        winit::event_loop::EventLoop::new()
++    }
++}
+ 
+ /// Validated startup state. No native hooks or workers may run before prepare returns.
+ pub struct Startup {
+diff --git a/crates/horizon-client/src/game/runtime/loading_screen.rs b/crates/horizon-client/src/game/runtime/loading_screen.rs
+--- a/crates/horizon-client/src/game/runtime/loading_screen.rs
++++ b/crates/horizon-client/src/game/runtime/loading_screen.rs
+@@ -30,7 +30,7 @@ pub(super) fn run_event_loop(mut game: Game<'_>) -> Result<()> {
+     }
+     let mut split = split::Split::new(game);
+-    let result = EventLoop::new()?.run_app(&mut split);
++    let result = crate::entry::event_loop()?.run_app(&mut split);
+     game = split.host;
+diff --git a/crates/horizon-client/src/game/runtime/no_resources.rs b/crates/horizon-client/src/game/runtime/no_resources.rs
+--- a/crates/horizon-client/src/game/runtime/no_resources.rs
++++ b/crates/horizon-client/src/game/runtime/no_resources.rs
+@@ -43,7 +43,7 @@ pub(super) fn show(looked_in: &std::path::Path, settings: &Settings) -> Result<()> {
+     };
+ 
+-    EventLoop::new()?.run_app(&mut app)?;
++    crate::entry::event_loop()?.run_app(&mut app)?;
+     app.error.map_or(Ok(()), Err)
+ }
