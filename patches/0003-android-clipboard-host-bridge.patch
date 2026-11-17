@@ -1,0 +1,78 @@
+diff --git a/crates/horizon-client-input/Cargo.toml b/crates/horizon-client-input/Cargo.toml
+--- a/crates/horizon-client-input/Cargo.toml
++++ b/crates/horizon-client-input/Cargo.toml
+@@ -11,7 +11,6 @@
+ horizon-engine-slots = { path = "../horizon-engine-slots" }
+ horizon-client-core = { path = "../horizon-client-core" }
+ winit = "0.30.13"
+ log = "0.4"
+ png = "0.18"
+-arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+ 
+ [dev-dependencies]
+ # The window icon test decodes Horizon's icon.
+@@ -20,6 +19,9 @@
+ controllers = []
+ 
+ [lints]
+ workspace = true
++
++[target.'cfg(not(target_os = "android"))'.dependencies]
++arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+diff --git a/crates/horizon-client-input/src/clipboard.rs b/crates/horizon-client-input/src/clipboard.rs
+--- a/crates/horizon-client-input/src/clipboard.rs
++++ b/crates/horizon-client-input/src/clipboard.rs
+@@ -106,8 +106,10 @@
+ /// It reads and writes through `&self`, as a mod's `ClientHost` reaches it.
+ #[derive(Default)]
+ pub struct SystemClipboard {
++    #[cfg(not(target_os = "android"))]
+     system: RefCell<Option<arboard::Clipboard>>,
+     /// The text Horizon last copied (`horizon-ctl status`).
+     copied: RefCell<Option<String>>,
+ }
+ 
+ impl SystemClipboard {
+@@ -117,6 +119,7 @@
+         self.copied.borrow().clone()
+     }
+     /// The system clipboard, connected on first use.
++    #[cfg(not(target_os = "android"))]
+     fn system(&self) -> RefMut<'_, Option<arboard::Clipboard>> {
+         let mut system = self.system.borrow_mut();
+         if system.is_none() {
+@@ -125,6 +128,10 @@
+     }
+     /// `KeyboardHandler.getClipboard`: empty when there is no text.
+     pub fn text(&self) -> String {
++        #[cfg(target_os = "android")]
++        return self.copied().unwrap_or_default();
++
++        #[cfg(not(target_os = "android"))]
++        {
+         let mut system = self.system();
+         let Some(board) = system.as_mut() else {
+             return self.copied().unwrap_or_default();
+@@ -139,13 +146,18 @@
+                 String::new()
+             }
+         }
++        }
+     }
+     /// `KeyboardHandler.setClipboard`: empty text is not copied.
+     pub fn set_text(&self, text: &str) {
+         if text.is_empty() {
+             return;
+         }
+         *self.copied.borrow_mut() = Some(text.to_owned());
++        #[cfg(not(target_os = "android"))]
++        {
+         let mut system = self.system();
+         if let Some(board) = system.as_mut()
+             && board.set_text(text.to_owned()).is_err()
+         {
+             *system = None;
+         }
++        }
+     }
+ }
