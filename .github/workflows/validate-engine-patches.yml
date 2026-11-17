@@ -51,3 +51,5 @@ jobs:
         run: bash scripts/apply-engine-patches.sh
       - name: Cross-check Horizon client for Android arm64
         run: cargo check --manifest-path engine/horizon-upstream/Cargo.toml -p horizon-client --lib --target aarch64-linux-android --no-default-features
+      - name: Cross-check JNI bridge for Android arm64
+        run: cargo check --manifest-path bridge/Cargo.toml --target aarch64-linux-android
