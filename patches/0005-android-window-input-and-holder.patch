@@ -1,0 +1,58 @@
+diff --git a/crates/horizon-client/src/game/runtime/window_handler.rs b/crates/horizon-client/src/game/runtime/window_handler.rs
+--- a/crates/horizon-client/src/game/runtime/window_handler.rs
++++ b/crates/horizon-client/src/game/runtime/window_handler.rs
+@@ -437,14 +437,21 @@ impl ApplicationHandler for Game<'_> {
+         self.handle_window_event(event_loop, id, event, input_trace::InputOrigin::User);
+         if let Some((event, modifiers)) = key {
+-            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+             let name = match event.physical_key {
+                 PhysicalKey::Code(code) => horizon_client::keybinds::key_name(code),
+                 PhysicalKey::Unidentified(_) => None,
+             };
+-            let layout_key = horizon_client::keybinds::layout_key_name(
+-                event.physical_key,
+-                &event.key_without_modifiers(),
+-            );
++            let layout_key = {
++                #[cfg(target_os = "android")]
++                {
++                    horizon_client::keybinds::layout_key_name(
++                        event.physical_key,
++                        &event.logical_key,
++                    )
++                }
++                #[cfg(not(target_os = "android"))]
++                {
++                    use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
++                    horizon_client::keybinds::layout_key_name(
++                        event.physical_key,
++                        &event.key_without_modifiers(),
++                    )
++                }
++            };
+             let raw_code = horizon_client::keybinds::raw_key_code(event.physical_key);
+diff --git a/crates/horizon-client/src/entry.rs b/crates/horizon-client/src/entry.rs
+--- a/crates/horizon-client/src/entry.rs
++++ b/crates/horizon-client/src/entry.rs
+@@ -25,7 +25,9 @@ impl Startup {
+ /// Holder mode runs first. The game's sole Options validation reads arguments/environment
+ /// and resource marker metadata only: no logging, account loading, mods or worker threads.
+ /// Account IO, cwd changes and command registration remain in Options::read, after leases.
+ pub fn prepare() -> Startup {
++    #[cfg(not(target_os = "android"))]
+     horizon_mod_package::holder::enter();
++    
+     let result: crate::Result<_> = (|| {
+         let mut command = std::process::Command::new(std::env::current_exe()?);
+         command.args(std::env::args_os().skip(1));
+@@ -40,7 +42,10 @@ pub fn prepare() -> Startup {
+     let Some(options) = options else {
+         std::process::exit(0);
+     };
++    #[cfg(not(target_os = "android"))]
+     let capture = horizon_mod_package::holder::acquire(&launch);
++    #[cfg(target_os = "android")]
++    let capture = None;
+     Startup {
+         launch,
+         options,
