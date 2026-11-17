@@ -29,8 +29,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Install Android SDK and NDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
       - name: Install pinned Android NDK
@@ -53,3 +52,17 @@ jobs:
         run: cargo check --manifest-path engine/horizon-upstream/Cargo.toml -p horizon-client --lib --target aarch64-linux-android --no-default-features
       - name: Cross-check JNI bridge for Android arm64
         run: cargo check --manifest-path bridge/Cargo.toml --target aarch64-linux-android
+      - name: Build Android ARM64 native library
+        run: cargo build --release --manifest-path bridge/Cargo.toml --target aarch64-linux-android
+      - name: Verify native library output
+        run: |
+          test -s target/aarch64-linux-android/release/libhorizon_android_bridge.so
+          file target/aarch64-linux-android/release/libhorizon_android_bridge.so
+          llvm-readelf -h target/aarch64-linux-android/release/libhorizon_android_bridge.so
+      - name: Upload Android ARM64 native library
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-android-arm64-native
+          path: target/aarch64-linux-android/release/libhorizon_android_bridge.so
+          if-no-files-found: error
+          retention-days: 7
