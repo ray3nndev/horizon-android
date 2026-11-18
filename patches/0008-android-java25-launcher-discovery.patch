@@ -1,0 +1,18 @@
+diff --git a/engine/horizon-upstream/crates/horizon-prepare/src/java.rs b/engine/horizon-upstream/crates/horizon-prepare/src/java.rs
+--- a/engine/horizon-upstream/crates/horizon-prepare/src/java.rs
++++ b/engine/horizon-upstream/crates/horizon-prepare/src/java.rs
+@@ -190,6 +190,16 @@ fn find_tools(major: i64, more: &[PathBuf], compiler: bool) -> Result<Jdk, String> {
+     );
+     let mut candidates = Vec::new();
++    // Android cannot execute a downloaded JRE's bin/java directly from app-private
++    // storage. The host may provide a small native executable which loads that
++    // runtime's libjli.so and forwards the original Java command line.
++    // This is runtime-only: precompiled exporters do not require javac.
++    if !compiler && cfg!(target_os = "android") {
++        if let Some(launcher) = std::env::var_os("HORIZON_JAVA_LAUNCHER")
++            .filter(|value| !value.is_empty())
++        {
++            candidates.push((PathBuf::new(), PathBuf::from(launcher), "HORIZON_JAVA_LAUNCHER"));
++        }
++    }
+     if let Some(home) = std::env::var_os("JAVA_HOME").filter(|h| !h.is_empty()) {

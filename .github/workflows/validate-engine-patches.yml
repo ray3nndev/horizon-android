@@ -55,16 +55,28 @@ jobs:
         run: cargo check --manifest-path bridge/Cargo.toml --target aarch64-linux-android
       - name: Build Android ARM64 native library
         run: cargo build --release --manifest-path bridge/Cargo.toml --target aarch64-linux-android
+      - name: Build executable Java 25 process shim
+        run: |
+          TOOLCHAIN="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          mkdir -p bridge/target/aarch64-linux-android/release
+          "$TOOLCHAIN/aarch64-linux-android24-clang" -O2 -fPIE -pie \
+            bridge/android/java25_launcher.c \
+            -o bridge/target/aarch64-linux-android/release/libhorizon_java25.so -ldl
+          llvm-readelf -h bridge/target/aarch64-linux-android/release/libhorizon_java25.so
+          llvm-readelf -l bridge/target/aarch64-linux-android/release/libhorizon_java25.so
+          test -x bridge/target/aarch64-linux-android/release/libhorizon_java25.so
       - name: Verify native library output
         run: |
           LIBRARY="bridge/target/aarch64-linux-android/release/libhorizon_android_bridge.so"
           test -s "$LIBRARY"
           file "$LIBRARY"
           llvm-readelf -h "$LIBRARY"
-      - name: Upload Android ARM64 native library
+      - name: Upload Android ARM64 native libraries
         uses: actions/upload-artifact@v4
         with:
           name: horizon-android-arm64-native
-          path: bridge/target/aarch64-linux-android/release/libhorizon_android_bridge.so
+          path: |
+            bridge/target/aarch64-linux-android/release/libhorizon_android_bridge.so
+            bridge/target/aarch64-linux-android/release/libhorizon_java25.so
           if-no-files-found: error
           retention-days: 7
