@@ -10,6 +10,7 @@ use jni::{
     sys::jint,
 };
 use std::{
+    env,
     path::PathBuf,
     sync::{Mutex, OnceLock},
 };
@@ -26,6 +27,36 @@ pub struct LaunchContext {
 
 static LAUNCH_CONTEXT: OnceLock<Mutex<Option<LaunchContext>>> = OnceLock::new();
 static PREPARED_STARTUP: OnceLock<Mutex<Option<Startup>>> = OnceLock::new();
+/// Serializes Java-preparer invocations because Horizon's preparer reads the
+/// Java launcher configuration from the process environment.
+static PREPARE_ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn prepare_env_lock() -> &'static Mutex<()> {
+    PREPARE_ENV_LOCK.get_or_init(|| Mutex::new(()))
+}
+
+struct RestoredEnv {
+    values: Vec<(&'static str, Option<std::ffi::OsString>)>,
+}
+
+impl RestoredEnv {
+    fn capture(names: &'static [&'static str]) -> Self {
+        Self {
+            values: names.iter().map(|name| (*name, env::var_os(name))).collect(),
+        }
+    }
+}
+
+impl Drop for RestoredEnv {
+    fn drop(&mut self) {
+        for (name, value) in self.values.drain(..) {
+            match value {
+                Some(value) => unsafe { env::set_var(name, value) },
+                None => unsafe { env::remove_var(name) },
+            }
+        }
+    }
+}
 
 fn context_slot() -> &'static Mutex<Option<LaunchContext>> {
     LAUNCH_CONTEXT.get_or_init(|| Mutex::new(None))
@@ -192,6 +223,8 @@ pub extern "system" fn Java_com_ray3nndev_vyron_nativebridge_HorizonBridge_nativ
     server_jar: JString<'_>,
     java_home: JString<'_>,
     output: JString<'_>,
+    java_launcher: JString<'_>,
+    jli_library: JString<'_>,
 ) -> jni::sys::jstring {
     let paths = (
         java_string(&mut env, root),
@@ -199,9 +232,32 @@ pub extern "system" fn Java_com_ray3nndev_vyron_nativebridge_HorizonBridge_nativ
         java_string(&mut env, server_jar),
         java_string(&mut env, java_home),
         java_string(&mut env, output),
+        java_string(&mut env, java_launcher),
+        java_string(&mut env, jli_library),
     );
     let result = match paths {
-        (Ok(root), Ok(minecraft_dir), Ok(server_jar), Ok(java_home), Ok(output)) => {
+        (Ok(root), Ok(minecraft_dir), Ok(server_jar), Ok(java_home), Ok(output), Ok(java_launcher), Ok(jli_library)) => {
+            let _guard = match prepare_env_lock().lock() {
+                Ok(guard) => guard,
+                Err(_) => return env.new_string(r#"{"ok":false,"error":"Java preparation environment lock is poisoned"}"#)
+                    .map(|value| value.into_raw())
+                    .unwrap_or(std::ptr::null_mut()),
+            };
+
+            // Horizon's Android patch discovers the Java launcher through these
+            // environment variables. Keep them scoped to the preparation call so
+            // unrelated Android/native processes cannot inherit stale paths.
+            let _restored = RestoredEnv::capture(&[
+                "HORIZON_JAVA_LAUNCHER",
+                "HORIZON_JRE_HOME",
+                "HORIZON_JLI_LIBRARY",
+            ]);
+            unsafe {
+                env::set_var("HORIZON_JAVA_LAUNCHER", &java_launcher);
+                env::set_var("HORIZON_JRE_HOME", &java_home);
+                env::set_var("HORIZON_JLI_LIBRARY", &jli_library);
+            }
+
             let options = horizon_prepare::Options {
                 root: PathBuf::from(root),
                 import: true,
