@@ -1,7 +1,7 @@
 diff --git a/crates/horizon-prepare/src/java.rs b/crates/horizon-prepare/src/java.rs
 --- a/crates/horizon-prepare/src/java.rs
 +++ b/crates/horizon-prepare/src/java.rs
-@@ -190,3 +190,11 @@ fn find_tools(major: i64, more: &[PathBuf], compiler: bool) -> Result<Jdk, String> {
+@@ -190,3 +190,14 @@ fn find_tools(major: i64, more: &[PathBuf], compiler: bool) -> Result<Jdk, String> {
      );
      let mut candidates = Vec::new();
 +    // Android cannot execute a downloaded JRE's bin/java directly from app-private
