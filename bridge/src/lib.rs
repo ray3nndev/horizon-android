@@ -177,3 +177,90 @@ mod tests {
         assert!(launch_context().is_none());
     }
 }
+
+
+/// Run Horizon's pinned 26.3 resource preparer from the Android installer.
+/// Paths are app-private and the Java 25 shim must be exposed as <java_home>/bin/java.
+/// The root must contain research-lock.json, the pinned parity sources, and precompiled
+/// original exporters; this function deliberately uses the upstream preparer, not a subset.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_ray3nndev_vyron_nativebridge_HorizonBridge_nativePrepareResources(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    root: JString<'_>,
+    minecraft_dir: JString<'_>,
+    server_jar: JString<'_>,
+    java_home: JString<'_>,
+    output: JString<'_>,
+) -> jni::sys::jstring {
+    let paths = (
+        java_string(&mut env, root),
+        java_string(&mut env, minecraft_dir),
+        java_string(&mut env, server_jar),
+        java_string(&mut env, java_home),
+        java_string(&mut env, output),
+    );
+    let result = match paths {
+        (Ok(root), Ok(minecraft_dir), Ok(server_jar), Ok(java_home), Ok(output)) => {
+            let options = horizon_prepare::Options {
+                root: PathBuf::from(root),
+                import: true,
+                minecraft_dir: Some(PathBuf::from(minecraft_dir)),
+                server_jar: Some(PathBuf::from(server_jar)),
+                java_home: Some(PathBuf::from(java_home)),
+                inputs: Default::default(),
+                output: Some(PathBuf::from(output)),
+            };
+            let log = |line: &str| eprintln!("Vyron Horizon prepare: {line}");
+            let progress = |fraction: f32| {
+                eprintln!("Vyron Horizon prepare progress: {:.0}%", fraction * 100.0)
+            };
+            match horizon_prepare::prepare_with_progress(&options, &log, &progress) {
+                Ok(resources) => match horizon_prepare::check(&options.root, &resources) {
+                    Ok(missing) if missing.is_empty() => serde_json::json!({
+                        "ok": true,
+                        "resources": resources.to_string_lossy()
+                    }),
+                    Ok(missing) => serde_json::json!({
+                        "ok": false,
+                        "error": "Horizon resource verification found missing files",
+                        "missing": missing
+                    }),
+                    Err(error) => serde_json::json!({"ok": false, "error": error}),
+                },
+                Err(error) => serde_json::json!({"ok": false, "error": error}),
+            }
+        }
+        _ => serde_json::json!({"ok": false, "error": "Invalid resource preparation path"}),
+    };
+    match env.new_string(result.to_string()) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Check an existing resource folder with Horizon's complete official checker.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_ray3nndev_vyron_nativebridge_HorizonBridge_nativeCheckResources(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    root: JString<'_>,
+    resources: JString<'_>,
+) -> jni::sys::jstring {
+    let result = match (java_string(&mut env, root), java_string(&mut env, resources)) {
+        (Ok(root), Ok(resources)) => {
+            match horizon_prepare::check(&PathBuf::from(root), &PathBuf::from(resources)) {
+                Ok(missing) => serde_json::json!({
+                    "ok": missing.is_empty(),
+                    "missing": missing
+                }),
+                Err(error) => serde_json::json!({"ok": false, "error": error}),
+            }
+        }
+        _ => serde_json::json!({"ok": false, "error": "Invalid resource verification path"}),
+    };
+    match env.new_string(result.to_string()) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}

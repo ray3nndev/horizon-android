@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 jni = "0.21.1"
 serde_json = "1"
 horizon-client = { path = "../engine/horizon-upstream/crates/horizon-client", default-features = false }
+horizon-prepare = { path = "../engine/horizon-upstream/crates/horizon-prepare" }
 
 [target.'cfg(target_os = "android")'.dependencies]
 horizon-mod-host = { path = "../engine/horizon-upstream/crates/horizon-mod-host", default-features = false }
